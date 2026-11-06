@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bomberman Arena</title>
+<style>
+:root{
+  --stone:#182036; --plaque:#222d4a; --plaque-hi:#2d3b61; --line:#3a4a75;
+  --chalk:#eef0f6; --dim:#9aa7c7; --spark:#ffb703; --spark-ink:#2a1c00; --blast:#ef476f;
+  --grass:#6b8e23;
+  --p0:#f59e0b; --p1:#6bbf59; --p2:#6aa4d8; --p3:#b27bf0;
+  --display:"Arial Black","Segoe UI Black","Helvetica Neue",Arial,sans-serif;
+  --body:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  font-family:var(--body);color:var(--chalk);background:var(--stone) url("/images/terrain/block.png");
+  background-size:64px 64px;image-rendering:pixelated;line-height:1.4;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+body::before{content:"";position:fixed;inset:0;background:rgba(16,22,40,.86);z-index:-1}
+h1,h2,h3{font-family:var(--display);font-weight:900;margin:0;letter-spacing:-.01em}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--spark);outline-offset:2px}
+.hidden{display:none!important}
+
+header.top{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 16px;background:rgba(24,32,54,.92);border-bottom:2px solid var(--line)}
+header.top .brand{font-family:var(--display);font-size:18px;color:var(--spark)}
+.chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.chip{padding:3px 10px;border-radius:99px;background:var(--plaque);border:1px solid var(--line);white-space:nowrap}
+.chip.ok{border-color:#3d9a5b}.chip.bad{border-color:var(--blast)}
+
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+.plaque{background:var(--plaque);border:2px solid var(--line);border-radius:6px;padding:18px;box-shadow:4px 4px 0 rgba(0,0,0,.35)}
+.plaque h2{font-size:20px;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+
+.btn{cursor:pointer;border:2px solid #000;border-radius:5px;padding:9px 16px;font-weight:700;background:var(--plaque-hi);box-shadow:0 3px 0 #000;transition:transform .05s}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #000}
+.btn.primary{background:var(--spark);color:var(--spark-ink)}
+.btn.danger{background:var(--blast);color:#fff}
+.btn.small{padding:3px 10px;box-shadow:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+label{display:block;font-size:14px;color:var(--dim);margin:12px 0 4px}
+input[type=text],input[type=password]{width:100%;padding:10px 12px;border-radius:5px;border:2px solid var(--line);background:#141c33}
+.msg{min-height:22px;margin-top:10px;color:var(--blast);font-weight:600}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.sub{font-size:13px;color:var(--dim)}
+
+.hero{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:center;margin-top:24px}
+@media(max-width:760px){.hero{grid-template-columns:1fr}}
+.hero h1{font-size:clamp(34px,7vw,58px);line-height:1;color:var(--chalk);text-shadow:4px 4px 0 var(--blast)}
+.hero p{color:var(--dim);max-width:34ch;margin:14px 0 0}
+.hero .sprites{display:flex;gap:6px;margin-top:20px}
+.hero .sprites img{width:56px;height:56px;image-rendering:pixelated}
+
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.item{display:flex;align-items:center;gap:12px;padding:10px 12px;background:#1a2340;border:1px solid var(--line);border-radius:5px}
+.item .grow{flex:1;min-width:0}
+.item .name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{color:var(--dim);padding:14px;border:1px dashed var(--line);border-radius:5px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-weight:600;color:var(--dim);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+td{padding:6px;border-bottom:1px solid rgba(58,74,117,.5)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block;vertical-align:-2px;margin-right:6px}
+.pimg{width:40px;height:40px;image-rendering:pixelated}
+
+#game{display:grid;grid-template-columns:minmax(0,624px) 250px;gap:16px;justify-content:center;align-items:start}
+@media(max-width:900px){#game{grid-template-columns:minmax(0,624px)}}
+.boardwrap{position:relative;width:100%}
+canvas{display:block;width:100%;height:auto;aspect-ratio:1;image-rendering:pixelated;border:3px solid #000;background:var(--grass)}
+.hud .time{font-family:var(--display);font-size:34px;font-variant-numeric:tabular-nums}
+.pl{display:flex;align-items:center;gap:10px;padding:8px;border-radius:5px;border:2px solid transparent}
+.pl.me{border-color:var(--spark)}
+.pl.out{opacity:.45}
+.pl img{width:32px;height:32px;image-rendering:pixelated}
+.pl .score{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+.banner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--display);font-size:clamp(26px,6vw,46px);color:#fff;text-shadow:3px 3px 0 #000;pointer-events:none;padding:12px}
+.touch{display:none;justify-content:space-between;align-items:center;margin:14px auto 0;max-width:420px;user-select:none;-webkit-user-select:none;touch-action:none}
+.pad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:6px}
+.touch button{border-radius:12px;font-size:24px;background:var(--plaque-hi);border:2px solid #000;touch-action:none}
+.touch .bomb{width:104px;height:104px;border-radius:52px;background:var(--spark);color:var(--spark-ink);font-size:18px;font-weight:800}
+@media(pointer:coarse){.touch{display:flex}}
+
+.overlay{position:fixed;inset:0;background:rgba(10,14,28,.82);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.overlay .plaque{max-width:460px;width:100%}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--blast);color:#fff;padding:10px 16px;border-radius:6px;font-weight:600;z-index:30;max-width:90vw}
+.win td{background:rgba(255,183,3,.14)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Bomberman Arena</div>
+  <div class="chips">
+    <span class="chip" id="chipNet">connecting…</span>
+    <span class="chip hidden" id="chipUser"></span>
+    <button class="btn small hidden" id="btnLogout">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <section id="auth" class="hero">
+    <div>
+      <h1>Bomberman<br>Arena</h1>
+      <p>Last player standing wins. Every move travels over the network to the server.</p>
+      <div class="sprites" aria-hidden="true">
+        <img src="/images/hero/pf1.png" alt=""><img src="/images/enemy/e1f1.png" alt="">
+        <img src="/images/enemy/e2f1.png" alt=""><img src="/images/enemy/e3f1.png" alt="">
+      </div>
+    </div>
+    <div class="plaque">
+      <h2>Sign in to play</h2>
+      <label for="u">Username</label>
+      <input type="text" id="u" autocomplete="username" maxlength="16" autocapitalize="off" spellcheck="false">
+      <label for="p">Password</label>
+      <input type="password" id="p" autocomplete="current-password" maxlength="64">
+      <div class="row" style="margin-top:16px">
+        <button class="btn primary" id="btnLogin">Sign in</button>
+        <button class="btn" id="btnRegister">Create account</button>
+      </div>
+      <div class="msg" id="authMsg" role="alert"></div>
+    </div>
+  </section>
+
+  <section id="lobby" class="hidden grid2">
+    <div class="plaque">
+      <h2>Rooms</h2>
+      <div class="row" style="margin-bottom:12px">
+        <input type="text" id="roomName" placeholder="Room name (optional)" maxlength="20" style="flex:1;min-width:140px;width:auto">
+        <button class="btn primary" id="btnCreate">Create room</button>
+      </div>
+      <ul class="list" id="roomList"></ul>
+    </div>
+    <div class="plaque">
+      <h2>Best players</h2>
+      <div id="lbBox"></div>
+    </div>
+  </section>
+
+  <section id="room" class="hidden" style="max-width:560px;margin:0 auto">
+    <div class="plaque">
+      <h2 id="roomTitle">Room</h2>
+      <ul class="list" id="roomPlayers" style="margin-bottom:12px"></ul>
+      <p class="sub" id="roomHint"></p>
+      <div class="row">
+        <button class="btn primary" id="btnStart">Start match</button>
+        <button class="btn" id="btnLeave">Leave room</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <div>
+      <div class="boardwrap">
+        <canvas id="cv" width="624" height="624"></canvas>
+        <div class="banner hidden" id="banner"></div>
+      </div>
+      <div class="touch" id="touch">
+        <div class="pad">
+          <button data-dir="2" style="grid-column:2;grid-row:1" aria-label="Up">&#9650;</button>
+          <button data-dir="3" style="grid-column:1;grid-row:2" aria-label="Left">&#9664;</button>
+          <button data-dir="1" style="grid-column:3;grid-row:2" aria-label="Right">&#9654;</button>
+          <button data-dir="0" style="grid-column:2;grid-row:3" aria-label="Down">&#9660;</button>
+        </div>
+        <button class="bomb" id="btnBomb">Bomb</button>
+      </div>
+    </div>
+    <aside class="plaque hud">
+      <div class="time" id="clock">2:00</div>
+      <div class="sub" id="phase" style="margin-bottom:10px"></div>
+      <div id="scores" class="list"></div>
+      <p class="sub" style="margin:14px 0 10px">Arrows or WASD to move, Space to drop a bomb.</p>
+      <button class="btn danger" id="btnQuit">Leave match</button>
+    </aside>
+  </section>
+</main>
+
+<div class="overlay hidden" id="results">
+  <div class="plaque">
+    <h2 id="resTitle">Match over</h2>
+    <p id="resSub" class="sub" style="margin:0 0 10px"></p>
+    <table><thead><tr><th>#</th><th>Player</th><th class="n">Kills</th><th class="n">Score</th></tr></thead><tbody id="resBody"></tbody></table>
+    <div class="row" style="margin-top:16px"><button class="btn primary" id="btnBack">Back to room</button></div>
+  </div>
+</div>
+<div class="overlay hidden" id="lost"><div class="plaque"><h2 id="lostTitle">Connection lost</h2>
+  <p id="lostText" class="sub">The server stopped answering.</p>
+  <button class="btn primary" onclick="location.reload()">Reload</button></div></div>
+<div class="toast hidden" id="toast" role="status"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const T = 48, COLS = 13, SKIN_DIR = ["f", "r", "b", "l"];
+const COLORS = ["var(--p0)", "var(--p1)", "var(--p2)", "var(--p3)"];
+const PCOL = ["#f59e0b", "#6bbf59", "#6aa4d8", "#b27bf0"];
+
+/* ---------------------------------------------------------------- network (WebSocket = TCP) */
+let ws = null, closedByUs = false;
+let rtt = null, snapRx = 0, snapGap = 0, lastSnap = -1;
+const S = {user: null, room: null, game: null, screen: "auth"};
+
+function connect() {
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws");
+  ws.onopen = () => setNet("TCP · connected", "ok");
+  ws.onmessage = e => { try { handle(JSON.parse(e.data)); } catch (err) { console.error(err); } };
+  ws.onclose = () => { if (!closedByUs) lost("Connection lost", "The server stopped answering."); };
+}
+function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+function setNet(text, cls) { const c = $("#chipNet"); c.textContent = text; c.className = "chip " + (cls || ""); }
+function lost(title, text) {
+  setNet("TCP · offline", "bad");
+  $("#lostTitle").textContent = title; $("#lostText").textContent = text;
+  $("#lost").classList.remove("hidden"); stopInput();
+}
+setInterval(() => send({t: "ping", ts: performance.now(), rtt: rtt, rx: snapRx, gap: snapGap}), 1000);
+
+/* ---------------------------------------------------------------- screens / helpers */
+function show(name) {
+  S.screen = name;
+  for (const id of ["auth", "lobby", "room", "game"]) $("#" + id).classList.toggle("hidden", id !== name);
+  $("#chipUser").classList.toggle("hidden", !S.user);
+  $("#btnLogout").classList.toggle("hidden", !S.user);
+}
+let toastTimer = 0;
+function toast(text) {
+  const t = $("#toast"); t.textContent = text; t.classList.remove("hidden");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), 3500);
+}
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) { if (k === "class") e.className = v; else if (k === "style") e.style.cssText = v; else e[k] = v; }
+  for (const k of kids) e.append(k);
+  return e;
+}
+function skin(slot, dir, frame) {
+  const l = SKIN_DIR[dir];
+  return slot === 0 ? `/images/hero/p${l}${frame}.png` : `/images/enemy/e${slot}${l}${frame}.png`;
+}
+
+/* ---------------------------------------------------------------- server messages */
+function handle(m) {
+  switch (m.t) {
+    case "hello": setNet("TCP · connected", "ok"); break;
+    case "pong": rtt = Math.round(performance.now() - m.ts); setNet(`TCP · ${rtt} ms`, "ok"); break;
+    case "auth_ok":
+      S.user = m.user; $("#chipUser").textContent = m.user; $("#authMsg").textContent = ""; $("#p").value = "";
+      show("lobby"); break;
+    case "auth_err": $("#authMsg").textContent = m.msg; break;
+    case "err": case "notice": toast(m.msg); break;
+    case "kicked": closedByUs = true; lost("Signed out", m.msg); break;
+    case "rooms": renderRooms(m.rooms); break;
+    case "lb": renderLb(m.rows); break;
+    case "room":
+      S.room = m;
+      if (S.screen !== "game") { renderRoom(); if ($("#results").classList.contains("hidden")) show("room"); }
+      break;
+    case "left": S.room = null; stopInput(); $("#results").classList.add("hidden"); show("lobby"); send({t: "lb"}); break;
+    case "start": startGame(m); break;
+    case "snap": onSnap(m); break;
+    case "end": onEnd(m); break;
+  }
+}
+
+function renderRooms(rooms) {
+  const ul = $("#roomList"); ul.replaceChildren();
+  if (!rooms.length) { ul.append(el("li", {class: "empty"}, "No room yet. Create one, then tell your friends to open this address.")); return; }
+  for (const r of rooms) {
+    const can = r.state === "waiting" && r.n < r.max;
+    ul.append(el("li", {class: "item"},
+      el("div", {class: "grow"}, el("div", {class: "name"}, r.name),
+         el("div", {class: "sub"}, `host ${r.host} · ${r.n}/${r.max} players · ${r.state === "waiting" ? "waiting" : "match running"}`)),
+      el("button", {class: "btn" + (can ? " primary" : ""), disabled: !can, onclick: () => send({t: "join", room: r.id})}, "Join")));
+  }
+}
+function renderLb(rows) {
+  const box = $("#lbBox"); box.replaceChildren();
+  if (!rows.length) { box.append(el("div", {class: "empty"}, "No finished match yet.")); return; }
+  const tb = el("tbody");
+  rows.forEach((r, i) => tb.append(el("tr", {}, el("td", {}, String(i + 1)), el("td", {}, r.username),
+    el("td", {class: "n"}, String(r.wins)), el("td", {class: "n"}, String(r.total_score)))));
+  const head = el("thead", {}, el("tr", {}, el("th", {}, "#"), el("th", {}, "Player"), el("th", {class: "n"}, "Wins"), el("th", {class: "n"}, "Points")));
+  box.append(el("table", {}, head, tb));
+}
+function renderRoom() {
+  const r = S.room; if (!r) return;
+  $("#roomTitle").textContent = r.name;
+  const ul = $("#roomPlayers"); ul.replaceChildren();
+  r.players.forEach((n, i) => ul.append(el("li", {class: "item"},
+    el("img", {class: "pimg", src: skin(i, 0, 1), alt: ""}),
+    el("div", {class: "grow"}, el("div", {class: "name", style: `color:${PCOL[i]}`}, n),
+       el("div", {class: "sub"}, n === r.host ? "host" : "player")))));
+  const me = r.host === S.user;
+  $("#btnStart").classList.toggle("hidden", !me);
+  $("#btnStart").disabled = r.players.length < r.min;
+  $("#roomHint").textContent = r.players.length < r.min ? `Waiting for players (${r.players.length} here, ${r.min} needed, ${r.max} maximum).`
+    : me ? "Everyone here? Start the match." : `Waiting for ${r.host} to start.`;
+}
+
+/* ---------------------------------------------------------------- images */
+const IMG = {};
+function img(src) { if (!IMG[src]) { const i = new Image(); i.src = src; IMG[src] = i; } return IMG[src]; }
+["terrain/grass", "terrain/block", "terrain/box", "bomb/1", "bomb/2", "bomb/3", "explosion/1", "explosion/2", "explosion/3",
+ "power_up/bomb", "power_up/fire"].forEach(n => img(`/images/${n}.png`));
+for (let s = 0; s < 4; s++) for (let d = 0; d < 4; d++) for (let f = 0; f < 3; f++) img(skin(s, d, f));
+
+/* ---------------------------------------------------------------- game */
+const cv = $("#cv"), ctx = cv.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+const held = new Set(); let bombCount = 0, inputN = 0, inputTimer = 0, snap = null, looping = false;
+
+function startGame(m) {
+  S.game = {gid: m.gid, you: m.you, players: m.players, over: false};
+  snap = null; lastSnap = -1; snapRx = 0; snapGap = 0; bombCount = 0; inputN = 0; held.clear();
+  $("#results").classList.add("hidden"); $("#banner").classList.add("hidden");
+  show("game"); buildScores();
+  clearInterval(inputTimer);
+  inputTimer = setInterval(sendInput, 1000 / m.tick);
+  if (!looping) { looping = true; requestAnimationFrame(loop); }
+}
+function stopInput() { clearInterval(inputTimer); inputTimer = 0; held.clear(); }
+function curDir() { return held.has(0) ? 0 : held.has(1) ? 1 : held.has(2) ? 2 : held.has(3) ? 3 : -1; }
+function sendInput() {
+  if (!S.game || S.game.over) return;
+  send({t: "in", g: S.game.gid, n: ++inputN, d: curDir(), b: bombCount});
+}
+function onSnap(m) {
+  if (!S.game || m.s <= lastSnap) return;               // stale or duplicate
+  if (lastSnap >= 0 && m.s > lastSnap + 1) snapGap += m.s - lastSnap - 1;
+  lastSnap = m.s; snapRx++; snap = m; updateHud();
+}
+function buildScores() {
+  const box = $("#scores"); box.replaceChildren();
+  S.game.players.forEach(p => box.append(el("div", {class: "pl", id: "pl" + p.slot},
+    el("img", {src: skin(p.slot, 0, 1), alt: ""}),
+    el("div", {style: `color:${PCOL[p.slot]};font-weight:700`}, p.u + (p.slot === S.game.you ? " (you)" : "")),
+    el("div", {class: "score", id: "sc" + p.slot}, "0"))));
+}
+function fmt(ms) { const s = Math.ceil(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function updateHud() {
+  const g = S.game; if (!g || !snap) return;
+  $("#clock").textContent = fmt(snap.tl);
+  $("#phase").textContent = snap.ph === "countdown" ? "Get ready…" : "Match in progress";
+  for (const p of snap.p) {
+    const row = $("#pl" + p[0]); if (!row) continue;
+    row.classList.toggle("me", p[0] === g.you); row.classList.toggle("out", !p[5]);
+    $("#sc" + p[0]).textContent = p[6] + (p[9] ? " · " + p[9] + " kills" : "");
+  }
+  const b = $("#banner"), me = snap.p.find(p => p[0] === g.you);
+  if (snap.ph === "countdown") { b.textContent = Math.ceil(snap.cd / 1000); b.classList.remove("hidden"); }
+  else if (me && !me[5]) { b.textContent = "You are out"; b.classList.remove("hidden"); }
+  else b.classList.add("hidden");
+}
+function loop() {
+  if (S.screen !== "game") { looping = false; return; }
+  draw(); requestAnimationFrame(loop);
+}
+function draw() {
+  if (!snap) return;
+  const gs = snap.g;
+  for (let x = 0; x < COLS; x++) for (let y = 0; y < COLS; y++) {
+    const c = gs[x * COLS + y];
+    ctx.drawImage(img("/images/terrain/grass.png"), x * T, y * T, T, T);
+    if (c === "1") ctx.drawImage(img("/images/terrain/block.png"), x * T, y * T, T, T);
+    else if (c === "2") ctx.drawImage(img("/images/terrain/box.png"), x * T, y * T, T, T);
+  }
+  for (const u of snap.u) ctx.drawImage(img(`/images/power_up/${u[2] === 0 ? "bomb" : "fire"}.png`), u[0] * T, u[1] * T, T, T);
+  for (const b of snap.b) ctx.drawImage(img(`/images/bomb/${b[2] + 1}.png`), b[0] * T, b[1] * T, T, T);
+  for (let x = 0; x < COLS; x++) for (let y = 0; y < COLS; y++) {
+    const i = "abc".indexOf(gs[x * COLS + y]);
+    if (i >= 0) ctx.drawImage(img(`/images/explosion/${i + 1}.png`), x * T, y * T, T, T);
+  }
+  ctx.font = "bold 13px system-ui, sans-serif"; ctx.textAlign = "center";
+  for (const p of snap.p) {
+    if (!p[5]) continue;
+    const px = p[1] * (T / 4), py = p[2] * (T / 4);
+    ctx.drawImage(img(skin(p[0], p[3], p[4])), px, py, T, T);
+    const name = S.game.players[p[0]].u;
+    ctx.lineWidth = 3; ctx.strokeStyle = "#000"; ctx.strokeText(name, px + T / 2, py - 2);
+    ctx.fillStyle = PCOL[p[0]]; ctx.fillText(name, px + T / 2, py - 2);
+  }
+}
+
+/* ---------------------------------------------------------------- results */
+function onEnd(m) {
+  if (S.game) S.game.over = true;
+  stopInput();
+  $("#resTitle").textContent = m.winner === S.user ? "You win!" : `${m.winner} wins`;
+  $("#resSub").textContent = {last_standing: "Last player standing", time_up: "Time is up", all_dead: "Everyone was eliminated"}[m.reason] || m.reason;
+  const tb = $("#resBody"); tb.replaceChildren();
+  for (const r of m.ranking) {
+    const state = r.dropped ? " (disconnected)" : r.alive ? " (survived)" : "";
+    tb.append(el("tr", {class: r.rank === 1 ? "win" : ""}, el("td", {}, String(r.rank)),
+      el("td", {}, el("span", {class: "sw", style: `background:${PCOL[r.slot]}`}), r.u + state),
+      el("td", {class: "n"}, String(r.kills)), el("td", {class: "n"}, String(r.score))));
+  }
+  $("#results").classList.remove("hidden");
+  send({t: "lb"});
+}
+
+/* ---------------------------------------------------------------- controls */
+const KEYS = {ArrowDown: 0, s: 0, S: 0, ArrowRight: 1, d: 1, D: 1, ArrowUp: 2, w: 2, W: 2, ArrowLeft: 3, a: 3, A: 3};
+addEventListener("keydown", e => {
+  if (S.screen !== "game" || e.target.tagName === "INPUT") return;
+  if (e.key in KEYS) { held.add(KEYS[e.key]); e.preventDefault(); }
+  else if (e.code === "Space") { if (!e.repeat) bombCount++; e.preventDefault(); }
+});
+addEventListener("keyup", e => { if (e.key in KEYS) held.delete(KEYS[e.key]); });
+addEventListener("blur", () => held.clear());
+for (const b of document.querySelectorAll("#touch [data-dir]")) {
+  const d = +b.dataset.dir;
+  b.addEventListener("pointerdown", e => { held.add(d); e.preventDefault(); });
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, () => held.delete(d));
+}
+$("#btnBomb").addEventListener("pointerdown", e => { bombCount++; e.preventDefault(); });
+
+/* ---------------------------------------------------------------- buttons */
+const creds = () => ({u: $("#u").value.trim(), p: $("#p").value});
+$("#btnLogin").onclick = () => send({t: "login", ...creds()});
+$("#btnRegister").onclick = () => send({t: "register", ...creds()});
+$("#p").addEventListener("keydown", e => { if (e.key === "Enter") $("#btnLogin").click(); });
+$("#u").addEventListener("keydown", e => { if (e.key === "Enter") $("#p").focus(); });
+$("#btnLogout").onclick = () => { send({t: "logout"}); S.user = null; S.room = null; stopInput(); show("auth"); };
+$("#btnCreate").onclick = () => { send({t: "create", name: $("#roomName").value}); $("#roomName").value = ""; };
+$("#btnStart").onclick = () => send({t: "start"});
+$("#btnLeave").onclick = () => send({t: "leave"});
+$("#btnQuit").onclick = () => send({t: "leave"});
+$("#btnBack").onclick = () => { $("#results").classList.add("hidden"); if (S.room) { renderRoom(); show("room"); } else show("lobby"); };
+
+connect();
+</script>
+</body>
+</html>

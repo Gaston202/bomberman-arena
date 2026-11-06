@@ -1,0 +1,3 @@
+# Server (TCP and UDP) and dashboard: Python 3.9+ standard library only, nothing to install.
+# Only the native pygame client (needed for the UDP version) needs this:
+pygame>=2.5
