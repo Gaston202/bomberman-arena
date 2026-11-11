@@ -13,3 +13,7 @@ data/*
 Thumbs.db
 .vscode/
 .idea/
+
+# Secrets: never commit SSH keys
+*.pem
+*.key
