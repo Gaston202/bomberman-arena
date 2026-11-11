@@ -29,6 +29,10 @@ Both servers run the same `arena/hub.py` (accounts, lobby, rooms, match, scores,
 Accounts, statistics and match history are stored on the server PC in `data/arena.db` (SQLite,
 passwords stored as salted PBKDF2 hashes).
 
+## Deploy the TCP version on Azure (HTTPS, works on the university network)
+
+See [docs/DEPLOYMENT_AZURE.md](docs/DEPLOYMENT_AZURE.md): Azure VM + nginx + Let's Encrypt, and why port 443 was needed.
+
 ## Deploy the TCP version on Render
 
 The repo contains a `render.yaml` Blueprint.
