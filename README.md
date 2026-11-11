@@ -33,25 +33,6 @@ passwords stored as salted PBKDF2 hashes).
 
 See [docs/DEPLOYMENT_AZURE.md](docs/DEPLOYMENT_AZURE.md): Azure VM + nginx + Let's Encrypt, and why port 443 was needed.
 
-## Deploy the TCP version on Render
-
-The repo contains a `render.yaml` Blueprint.
-
-1. Push this repo to GitHub.
-2. On https://dashboard.render.com click **New > Blueprint**, pick the repo, and confirm.
-   (Or **New > Web Service**: runtime *Python*, build command `echo ok`,
-   start command `python tcp_version/server_tcp.py --host 0.0.0.0`.)
-3. Open `https://<your-service>.onrender.com`. The page connects over `wss://` automatically.
-
-What changes on Render:
-* The server reads its port from `$PORT` (Render sets it). Locally it still defaults to 8000.
-* **Browsers only.** Render forwards HTTP/HTTPS and WebSockets but not raw TCP, so the pygame
-  client (`--proto tcp`, JSON lines) cannot connect to the Render deployment. The UDP version cannot run there either.
-* **Free plan limits:** the service sleeps after ~15 min without traffic (the first visit then takes ~1 min),
-  and the disk is wiped on every restart or deploy, so `arena.db` (accounts, scores) is reset.
-  To keep data, use a paid instance with a persistent disk and set `ARENA_DATA_DIR` to the disk mount path.
-* The dashboard (`dashboard/dashboard.py`) is not deployed; it only reads the local database.
-
 ## Test without 4 computers
 ```
 python tools/selftest.py                      # 68 automatic checks, both versions
