@@ -1,0 +1,17 @@
+# Render Blueprint: deploys the TCP version (browser client + WebSocket game traffic).
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: bomberman-arena-tcp
+    runtime: python
+    plan: free
+    # The server uses only the Python standard library; pygame (in requirements.txt) is for the desktop client.
+    buildCommand: echo "stdlib only - nothing to install"
+    startCommand: python tcp_version/server_tcp.py --host 0.0.0.0
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: PYTHONUNBUFFERED
+        value: "1"

@@ -27,6 +27,7 @@ from arena.netutil import lan_addresses        # noqa: E402
 WEB_DIR = os.path.join(ROOT, "tcp_version", "web")
 IMG_DIR = os.path.join(ROOT, "assets", "images")
 MAX_LINE = 1 << 16
+DEFAULT_PORT = 8000
 BACKLOG_LIMIT = 32 * 1024            # do not queue more than this for a slow client (snapshots are skipped)
 
 
@@ -167,8 +168,9 @@ def make_handler(hub):
 async def main():
     ap = argparse.ArgumentParser(description="Bomberman Arena - TCP-only server")
     ap.add_argument("--host", default="0.0.0.0")
-    ap.add_argument("--port", type=int, default=8000)
-    ap.add_argument("--data-dir", default=os.path.join(ROOT, "data"))
+    # Cloud hosts (Render, Railway, Heroku...) tell the app which port to bind through $PORT.
+    ap.add_argument("--port", type=int, default=int(os.environ.get("PORT", DEFAULT_PORT)))
+    ap.add_argument("--data-dir", default=os.environ.get("ARENA_DATA_DIR", os.path.join(ROOT, "data")))
     ap.add_argument("--db", default=None, help="SQLite file (default: <data-dir>/arena.db)")
     a = ap.parse_args()
     hub = Hub("tcp", a.db or os.path.join(a.data_dir, "arena.db"), a.data_dir)
