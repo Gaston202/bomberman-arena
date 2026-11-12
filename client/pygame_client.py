@@ -1,6 +1,6 @@
 """
 Native pygame client.  Same screens and same messages for both versions: only --proto changes.
-A browser cannot open UDP sockets, so THIS is the client of the UDP-only version.
+It is the client of BOTH versions: a plain TCP socket (--proto tcp) or a plain UDP socket (--proto udp).
 
     python client/pygame_client.py --proto udp --host 192.168.1.20
     python client/pygame_client.py --proto tcp --host 192.168.1.20

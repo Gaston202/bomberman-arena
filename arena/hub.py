@@ -1,7 +1,7 @@
 """
 The Hub is the whole game server EXCEPT the transport.
 
-  transport (TCP / WebSocket / UDP)  ->  Session.send() / Hub.on_message()  ->  Hub (this file)
+  transport (TCP / UDP)  ->  Session.send() / Hub.on_message()  ->  Hub (this file)
 
 Both versions (TCP-only and UDP-only) run exactly the same Hub, so the rules and features are
 identical and only the transport changes.

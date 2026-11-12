@@ -6,7 +6,6 @@ connects real socket clients and checks every mandatory feature of the project s
     python tools/selftest.py --proto udp --loss 0.25     # UDP with 25% simulated packet loss
 """
 import argparse
-import base64
 import os
 import socket
 import struct
@@ -18,7 +17,7 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from arena import engine, storage, wsproto      # noqa: E402
+from arena import engine, storage      # noqa: E402
 from arena.netclient import make_client          # noqa: E402
 
 OK = FAIL = 0
@@ -72,44 +71,6 @@ def start_server(proto, port, data_dir, loss):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     time.sleep(1.0)
     return p
-
-
-def ws_smoke(port):
-    """Browser path: HTTP page + WebSocket handshake + login, written with raw sockets."""
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(b"GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
-    page = b""
-    while True:
-        c = s.recv(65536)
-        if not c:
-            break
-        page += c
-    check(page.startswith(b"HTTP/1.1 200") and b"Bomberman" in page, "HTTP: game page served over TCP")
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(b"GET /images/hero/pf0.png HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
-    img = s.recv(65536)
-    check(img.startswith(b"HTTP/1.1 200") and b"image/png" in img, "HTTP: sprite served")
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(b"GET /../server_tcp.py HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
-    check(b" 404 " in s.recv(4096), "HTTP: path traversal blocked")
-    key = base64.b64encode(os.urandom(16)).decode()
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(f"GET /ws HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-              f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode())
-    head = s.recv(4096)
-    check(b"101" in head and wsproto.accept_key(key).encode() in head, "WebSocket handshake (browser)")
-    s.sendall(wsproto.encode_frame(b'{"t":"register","u":"webuser","p":"secret1"}', 0x1, os.urandom(4)))
-    s.settimeout(3)
-    data, got = b"", False
-    end = time.time() + 3
-    while time.time() < end and not got:
-        try:
-            data += s.recv(4096)
-        except socket.timeout:
-            break
-        got = b"auth_ok" in data
-    check(got, "WebSocket: register + auto login works")
-    s.close()
 
 
 def run(proto, loss):
@@ -230,8 +191,6 @@ def run(proto, loss):
         d = T(proto, port, loss)
         clients.append(d)
         check(d.wait("hello"), "robustness: server still accepts clients after garbage input")
-        if proto == "tcp":
-            ws_smoke(port)
     finally:
         for x in clients:
             x.net.close()
