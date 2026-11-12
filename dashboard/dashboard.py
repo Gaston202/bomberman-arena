@@ -59,7 +59,7 @@ async function tick(){
    h+=`<br><b>Server log</b><pre>${E(l.log.slice(-8).join("\\n"))}</pre>`;}
   h+="</div>";}
  h+=`<div class="c"><h2>Leaderboard (all matches, ${d.users} accounts)</h2>`+tbl(["#","Player","Games","Wins","Points","Best","Kills"],d.leaderboard.map((r,i)=>[i+1,r.username,r.games,r.wins,r.total_score,r.best_score,r.kills]))+"</div>";
- h+=`<div class="c"><h2>Recent matches</h2>`+d.matches.map(m=>`<div class=w>#${m.id} ${m.proto.toUpperCase()} - ${E(m.room)} - winner ${E(m.winner)} (${m.duration}s)</div><div class=off>${m.players.map(p=>p.rank+'. '+E(p.username)+' '+p.score).join(' | ')}</div>`).join("")+"</div>";
+ h+=`<div class="c"><h2>Recent matches</h2>`+d.matches.map(m=>`<div class=w>#${m.id} ${m.proto.toUpperCase()} - ${E(m.room)} - ${m.winner?'winner '+E(m.winner):'draw'} (${m.duration}s)</div><div class=off>${m.players.map(p=>p.rank+'. '+E(p.username)+' '+p.score).join(' | ')}</div>`).join("")+"</div>";
  h+=`<div class="c"><h2>TCP vs UDP (measured, all finished matches)</h2>`+tbl(["Proto","Matches","RTT avg ms","RTT max","Snapshots lost %","Retransmits","KB out/player"],d.comparison.map(c=>[c.proto.toUpperCase(),c.matches,(c.rtt_avg??0).toFixed(1),(c.rtt_max??0).toFixed(0),c.snaps_sent?(100*c.snaps_lost/c.snaps_sent).toFixed(2):"-",c.retransmits??0,((c.bytes_out??0)/1024).toFixed(0)]))+"</div>";
  document.getElementById("g").innerHTML=h;}
 tick();setInterval(tick,1500);

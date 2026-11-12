@@ -369,7 +369,8 @@ class Hub:
         metrics = {n: s.match_metrics() for n, s in room.members.items()}
         mid = self.db.record_match(self.proto, room.name, room.started, res, metrics)
         board = ", ".join(f"{r['rank']}.{r['u']}={r['score']}" for r in res["ranking"])
-        self.log(f"[{self.proto}] match #{mid} over ({res['reason']}): winner {res['winner']} | {board}")
+        outcome = f"winner {res['winner']}" if res["winner"] else "draw"
+        self.log(f"[{self.proto}] match #{mid} over ({res['reason']}): {outcome} | {board}")
         end = {"t": "end", "match": mid, **res}
         for s in list(room.members.values()):
             s.slot = None

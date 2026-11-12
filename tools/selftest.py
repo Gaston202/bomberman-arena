@@ -221,6 +221,56 @@ def engine_tests():
     check(g.players[0].want_dir == 1, "engine: stale input packets are ignored")
     snap = g.snapshot()
     check(len(str(snap)) < 1200, f"engine: snapshot fits in one UDP datagram ({len(str(snap))} bytes)")
+    draw_tests()
+
+
+def same_blast_game(names):
+    """Players 0 and 1 stand next to each other on an open row; player 0 plants a bomb under itself.
+    The blast reaches both on the same tick."""
+    g = engine.Game(names, seed=3, countdown_ms=0)
+    g.tick()
+    for x in range(1, 6):
+        g.grid[x][1] = 0
+    g.players[1].x, g.players[1].y = 2 * engine.Q, 1 * engine.Q
+    g.players[0].bomb_req = 1
+    return g
+
+
+def run_until_finished(g, max_ticks=200):
+    for _ in range(max_ticks):
+        g.tick()
+        if g.finished:
+            break
+
+
+def draw_tests():
+    # 2 players killed by the same explosion: a draw, even though the bomber has the higher score
+    g = same_blast_game(["a", "b"])
+    run_until_finished(g)
+    res = g.result or {}
+    check(g.finished and not g.players[0].alive and not g.players[1].alive, "draw: both players die on the same tick")
+    check(res.get("reason") == "draw" and res.get("winner") is None, "draw: reason is 'draw' and there is no winner")
+    check([r["rank"] for r in res.get("ranking", [])] == [1, 1], "draw: both players share rank 1")
+
+    # 3 players: c died earlier, then a and b die together -> a and b draw for 1st, c is 3rd
+    g = same_blast_game(["a", "b", "c"])
+    g._kill(g.players[2], 2)
+    run_until_finished(g)
+    ranks = {r["u"]: r["rank"] for r in (g.result or {}).get("ranking", [])}
+    check(ranks == {"a": 1, "b": 1, "c": 3}, f"draw: earlier death ranks below the drawn players ({ranks})")
+
+    # a draw is stored without a winner and nobody gets a win
+    tmp = tempfile.mkdtemp()
+    db = storage.Database(os.path.join(tmp, "arena.db"))
+    names = ["ann", "ben"]                                         # usernames need 3+ characters
+    for name in names:
+        db.register(name, "secret1")
+    g = same_blast_game(names)
+    run_until_finished(g)
+    db.record_match("tcp", "test", time.time(), g.result, {})
+    wins = {r["username"]: r["wins"] for r in db.leaderboard()}
+    winner = db.conn.execute("SELECT winner FROM matches").fetchone()[0]
+    check(wins == {"ann": 0, "ben": 0} and winner is None, f"draw: stored with no winner, no win counted ({wins})")
 
 
 if __name__ == "__main__":

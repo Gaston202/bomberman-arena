@@ -40,7 +40,7 @@ See [docs/DEPLOYMENT_AZURE.md](docs/DEPLOYMENT_AZURE.md): Azure VM, nginx TCP pa
 
 ## Test without 4 computers
 ```
-python tools/selftest.py                      # 63 automatic checks, both versions
+python tools/selftest.py                      # 68 automatic checks, both versions
 python tools/selftest.py --proto udp --loss 0.25
 python tools/bots.py --proto tcp --host 127.0.0.1 --bots 3     # a full match played by robots
 python tools/bots.py --proto udp --host 127.0.0.1 --bots 3 --loss 0.1

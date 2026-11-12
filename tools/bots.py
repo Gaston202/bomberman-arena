@@ -47,7 +47,7 @@ def bot(idx, a):
             elif t == "start":
                 state.update(scene="game", gid=m["gid"], n=0, b=0)
             elif t == "end":
-                results[name] = {"rank": [r["u"] for r in m["ranking"]].index(name) + 1, "winner": m["winner"],
+                results[name] = {"rank": next(r["rank"] for r in m["ranking"] if r["u"] == name), "winner": m["winner"],
                                  "reason": m["reason"], "rtt_ms": net.rtt_ms, "snap_rx": net.snap_rx,
                                  "snap_lost": net.snap_gap, "retransmits": getattr(net, "retransmits", 0),
                                  "KB_out": round(net.bytes_out / 1024, 1), "KB_in": round(net.bytes_in / 1024, 1)}
