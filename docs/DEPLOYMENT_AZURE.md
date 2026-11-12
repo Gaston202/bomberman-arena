@@ -297,4 +297,57 @@ then `sudo systemctl restart bomberman-tcp`.
   on the server, but they travel in clear text. TLS on the stream would fix this and help with strict campus firewalls.
 - **Server logs show `127.0.0.1` for every player**, because all connections arrive through nginx.
   (nginx's `proxy_protocol` could pass the real IP, but the server would have to parse it.)
-- **The UDP version isn't deployed** (it would need UDP 9000 open, and university networks often block UDP).
+- **UDP may be blocked on some networks.** Some campuses block all UDP (even QUIC on 443); then only the TCP version can work there.
+
+---
+
+## 9. The UDP version (same VM)
+
+The UDP server runs next to the TCP one, as a second systemd service, and **shares the same database**
+(`data/arena.db`), so accounts and scores are the same in both versions.
+
+**Why UDP port 443:** browsers use UDP 443 for HTTP/3 (QUIC), so networks are much more likely to allow it
+than UDP 9000. TCP and UDP have separate port numbers, so nginx (TCP 443) and the UDP server (UDP 443) do
+not conflict. No proxy is needed: Python binds the port itself, so the logs show players' real IPs.
+
+**Azure firewall:** inbound rule `Allow-Bomberman-UDP-443`, port 443, protocol **UDP**, source Any.
+
+`/etc/systemd/system/bomberman-udp.service`:
+
+```ini
+[Unit]
+Description=Bomberman Arena - UDP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=azureuser
+WorkingDirectory=/home/azureuser/bomberman-arena
+ExecStart=/usr/bin/python3 udp_version/server_udp.py --host 0.0.0.0 --port 443
+Environment=PYTHONUNBUFFERED=1
+# allow a non-root user to bind port 443 (ports < 1024 are privileged)
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload && sudo systemctl enable --now bomberman-udp
+journalctl -u bomberman-udp -f
+```
+
+`AmbientCapabilities=CAP_NET_BIND_SERVICE` gives the process only the right to bind ports below 1024.
+This is safer than running the game as root.
+
+**Play:** `python client/pygame_client.py --proto udp --host bomberman-arena.germanywestcentral.cloudapp.azure.com --port 443`
+
+**Verified (2026-11-12):** `tools/bots.py --proto udp --port 443` with 3 bots completed a match: 91/91 snapshots,
+0 lost, 0 retransmits. On campus: **to be tested**.
+
+After updating the code (4.4), restart both: `sudo systemctl restart bomberman-tcp bomberman-udp`.
