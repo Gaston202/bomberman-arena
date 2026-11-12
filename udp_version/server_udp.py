@@ -104,11 +104,6 @@ class UdpServer(asyncio.DatagramProtocol):
 def open_socket(host, port):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 1 << 20)
-    if hasattr(socket, "SIO_UDP_CONNRESET"):             # Windows: do not let ICMP errors kill recvfrom()
-        try:
-            sock.ioctl(socket.SIO_UDP_CONNRESET, False)
-        except OSError:
-            pass
     sock.bind((host, port))
     sock.setblocking(False)
     return sock
@@ -134,8 +129,25 @@ async def main():
     await hub.run()
 
 
+def run(coro):
+    """
+    Windows: use the Selector event loop, not the default Proactor loop.
+    When a client's UDP port closes, Windows turns the ICMP "port unreachable" into a
+    ConnectionResetError on the NEXT recvfrom().  The Proactor UDP transport reports that error
+    and then never posts another recvfrom(), so the server silently stops receiving from everyone.
+    The Selector loop is driven by readiness: it reports the error and keeps reading.
+    """
+    if sys.platform != "win32":
+        return asyncio.run(coro)
+    loop = asyncio.SelectorEventLoop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 if __name__ == "__main__":
     try:
-        asyncio.run(main())
+        run(main())
     except KeyboardInterrupt:
         print("\nserver stopped")
