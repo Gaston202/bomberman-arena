@@ -1,6 +1,6 @@
 """
 Native pygame client.  Same screens and same messages for both versions: only --proto changes.
-A browser cannot open UDP sockets, so THIS is the client of the UDP-only version.
+It is the client of BOTH versions: a plain TCP socket (--proto tcp) or a plain UDP socket (--proto udp).
 
     python client/pygame_client.py --proto udp --host 192.168.1.20
     python client/pygame_client.py --proto tcp --host 192.168.1.20
@@ -289,10 +289,16 @@ class App:
 
     def draw_results(self):
         r = self.result
-        win = r["winner"] == self.user
-        self.text("You win!" if win else f"{r['winner']} wins", (W // 2, 70), 90, SPARK, center=True)
+        if r["winner"] is None:
+            title = "Draw!"
+        elif r["winner"] == self.user:
+            title = "You win!"
+        else:
+            title = f"{r['winner']} wins"
+        self.text(title, (W // 2, 70), 90, SPARK, center=True)
         self.text({"last_standing": "Last player standing", "time_up": "Time is up",
-                   "all_dead": "Everyone was eliminated"}.get(r["reason"], r["reason"]), (W // 2, 130), 26, DIM, center=True)
+                   "all_dead": "Everyone was eliminated",
+                   "draw": "Eliminated at the same time"}.get(r["reason"], r["reason"]), (W // 2, 130), 26, DIM, center=True)
         for i, row in enumerate(r["ranking"]):
             y = 190 + i * 52
             tag = " (disconnected)" if row["dropped"] else " (survived)" if row["alive"] else ""

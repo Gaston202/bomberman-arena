@@ -124,7 +124,7 @@ class Database:
             self.conn.execute(
                 "UPDATE users SET games=games+1, wins=wins+?, total_score=total_score+?, "
                 "best_score=MAX(best_score,?), kills=kills+?, deaths=deaths+? WHERE username=?",
-                (1 if (r["rank"] == 1 and not r["dropped"]) else 0, r["score"], r["score"], r["kills"],
+                (1 if (r["u"] == result["winner"] and not r["dropped"]) else 0, r["score"], r["score"], r["kills"],
                  0 if r["alive"] else 1, r["u"]))
         self.conn.commit()
         return mid

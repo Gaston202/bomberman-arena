@@ -288,24 +288,35 @@ class Game:
     # ------------------------------------------------------------------ end of match
     def _check_end(self):
         alive = [p for p in self.players if p.alive]
-        if len(alive) <= 1:
-            self._finish("last_standing" if alive else "all_dead")
-        elif self.left_ms <= 0:
-            self._finish("time_up")
+        if len(alive) > 1:
+            if self.left_ms <= 0:
+                self._finish("time_up")
+            return
+        if alive:
+            self._finish("last_standing")
+            return
+        # Nobody is left.  If the last 2+ players (still connected) died on this same tick,
+        # nobody outlived anybody: it is a draw, whatever the scores are.
+        tied = [p for p in self.players if not p.dropped and p.died_at == self.elapsed]
+        if len(tied) >= 2:
+            self._finish("draw", tied)
+        else:
+            self._finish("all_dead")
 
-    def _finish(self, reason):
+    def _finish(self, reason, tied=()):
         if reason == "last_standing":
             for p in self.players:
                 if p.alive:
                     p.score += SCORE_SURVIVOR
-        order = sorted(self.players, key=lambda p: (p.dropped, -p.score, not p.alive,
+        # drawn players first (they share rank 1), then the usual order
+        order = sorted(self.players, key=lambda p: (p.dropped, p not in tied, -p.score, not p.alive,
                                                     -(p.died_at if p.died_at is not None else 1e12), p.slot))
         self.result = {
             "reason": reason,
-            "winner": order[0].name,
+            "winner": None if tied else order[0].name,
             "duration_s": round(self.elapsed / 1000.0, 1),
-            "ranking": [{"rank": i + 1, "u": p.name, "slot": p.slot, "score": p.score, "kills": p.kills,
-                         "alive": p.alive, "dropped": p.dropped} for i, p in enumerate(order)],
+            "ranking": [{"rank": 1 if p in tied else i + 1, "u": p.name, "slot": p.slot, "score": p.score,
+                         "kills": p.kills, "alive": p.alive, "dropped": p.dropped} for i, p in enumerate(order)],
         }
         self.finished = True
 

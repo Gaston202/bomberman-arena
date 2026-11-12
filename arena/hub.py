@@ -1,7 +1,7 @@
 """
 The Hub is the whole game server EXCEPT the transport.
 
-  transport (TCP / WebSocket / UDP)  ->  Session.send() / Hub.on_message()  ->  Hub (this file)
+  transport (TCP / UDP)  ->  Session.send() / Hub.on_message()  ->  Hub (this file)
 
 Both versions (TCP-only and UDP-only) run exactly the same Hub, so the rules and features are
 identical and only the transport changes.
@@ -369,7 +369,8 @@ class Hub:
         metrics = {n: s.match_metrics() for n, s in room.members.items()}
         mid = self.db.record_match(self.proto, room.name, room.started, res, metrics)
         board = ", ".join(f"{r['rank']}.{r['u']}={r['score']}" for r in res["ranking"])
-        self.log(f"[{self.proto}] match #{mid} over ({res['reason']}): winner {res['winner']} | {board}")
+        outcome = f"winner {res['winner']}" if res["winner"] else "draw"
+        self.log(f"[{self.proto}] match #{mid} over ({res['reason']}): {outcome} | {board}")
         end = {"t": "end", "match": mid, **res}
         for s in list(room.members.values()):
             s.slot = None

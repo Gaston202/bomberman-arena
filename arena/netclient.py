@@ -105,9 +105,6 @@ class TcpClient(_Base):
         self._lock = threading.Lock()
         threading.Thread(target=self._reader, daemon=True).start()
         threading.Thread(target=self._heartbeat, daemon=True).start()
-        # The server tells browsers ("GET ...") from native clients by the FIRST line received,
-        # so a native client must speak first.
-        self.send({"t": "ping", "ts": time.time()}, reliable=False)
 
     def _reader(self):
         buf = b""

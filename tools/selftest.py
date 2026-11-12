@@ -6,7 +6,6 @@ connects real socket clients and checks every mandatory feature of the project s
     python tools/selftest.py --proto udp --loss 0.25     # UDP with 25% simulated packet loss
 """
 import argparse
-import base64
 import os
 import socket
 import struct
@@ -18,7 +17,7 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-from arena import engine, storage, wsproto      # noqa: E402
+from arena import engine, storage      # noqa: E402
 from arena.netclient import make_client          # noqa: E402
 
 OK = FAIL = 0
@@ -72,44 +71,6 @@ def start_server(proto, port, data_dir, loss):
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     time.sleep(1.0)
     return p
-
-
-def ws_smoke(port):
-    """Browser path: HTTP page + WebSocket handshake + login, written with raw sockets."""
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(b"GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
-    page = b""
-    while True:
-        c = s.recv(65536)
-        if not c:
-            break
-        page += c
-    check(page.startswith(b"HTTP/1.1 200") and b"Bomberman" in page, "HTTP: game page served over TCP")
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(b"GET /images/hero/pf0.png HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
-    img = s.recv(65536)
-    check(img.startswith(b"HTTP/1.1 200") and b"image/png" in img, "HTTP: sprite served")
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(b"GET /../server_tcp.py HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n")
-    check(b" 404 " in s.recv(4096), "HTTP: path traversal blocked")
-    key = base64.b64encode(os.urandom(16)).decode()
-    s = socket.create_connection(("127.0.0.1", port), timeout=5)
-    s.sendall(f"GET /ws HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-              f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode())
-    head = s.recv(4096)
-    check(b"101" in head and wsproto.accept_key(key).encode() in head, "WebSocket handshake (browser)")
-    s.sendall(wsproto.encode_frame(b'{"t":"register","u":"webuser","p":"secret1"}', 0x1, os.urandom(4)))
-    s.settimeout(3)
-    data, got = b"", False
-    end = time.time() + 3
-    while time.time() < end and not got:
-        try:
-            data += s.recv(4096)
-        except socket.timeout:
-            break
-        got = b"auth_ok" in data
-    check(got, "WebSocket: register + auto login works")
-    s.close()
 
 
 def run(proto, loss):
@@ -230,8 +191,6 @@ def run(proto, loss):
         d = T(proto, port, loss)
         clients.append(d)
         check(d.wait("hello"), "robustness: server still accepts clients after garbage input")
-        if proto == "tcp":
-            ws_smoke(port)
     finally:
         for x in clients:
             x.net.close()
@@ -262,6 +221,56 @@ def engine_tests():
     check(g.players[0].want_dir == 1, "engine: stale input packets are ignored")
     snap = g.snapshot()
     check(len(str(snap)) < 1200, f"engine: snapshot fits in one UDP datagram ({len(str(snap))} bytes)")
+    draw_tests()
+
+
+def same_blast_game(names):
+    """Players 0 and 1 stand next to each other on an open row; player 0 plants a bomb under itself.
+    The blast reaches both on the same tick."""
+    g = engine.Game(names, seed=3, countdown_ms=0)
+    g.tick()
+    for x in range(1, 6):
+        g.grid[x][1] = 0
+    g.players[1].x, g.players[1].y = 2 * engine.Q, 1 * engine.Q
+    g.players[0].bomb_req = 1
+    return g
+
+
+def run_until_finished(g, max_ticks=200):
+    for _ in range(max_ticks):
+        g.tick()
+        if g.finished:
+            break
+
+
+def draw_tests():
+    # 2 players killed by the same explosion: a draw, even though the bomber has the higher score
+    g = same_blast_game(["a", "b"])
+    run_until_finished(g)
+    res = g.result or {}
+    check(g.finished and not g.players[0].alive and not g.players[1].alive, "draw: both players die on the same tick")
+    check(res.get("reason") == "draw" and res.get("winner") is None, "draw: reason is 'draw' and there is no winner")
+    check([r["rank"] for r in res.get("ranking", [])] == [1, 1], "draw: both players share rank 1")
+
+    # 3 players: c died earlier, then a and b die together -> a and b draw for 1st, c is 3rd
+    g = same_blast_game(["a", "b", "c"])
+    g._kill(g.players[2], 2)
+    run_until_finished(g)
+    ranks = {r["u"]: r["rank"] for r in (g.result or {}).get("ranking", [])}
+    check(ranks == {"a": 1, "b": 1, "c": 3}, f"draw: earlier death ranks below the drawn players ({ranks})")
+
+    # a draw is stored without a winner and nobody gets a win
+    tmp = tempfile.mkdtemp()
+    db = storage.Database(os.path.join(tmp, "arena.db"))
+    names = ["ann", "ben"]                                         # usernames need 3+ characters
+    for name in names:
+        db.register(name, "secret1")
+    g = same_blast_game(names)
+    run_until_finished(g)
+    db.record_match("tcp", "test", time.time(), g.result, {})
+    wins = {r["username"]: r["wins"] for r in db.leaderboard()}
+    winner = db.conn.execute("SELECT winner FROM matches").fetchone()[0]
+    check(wins == {"ann": 0, "ben": 0} and winner is None, f"draw: stored with no winner, no win counted ({wins})")
 
 
 if __name__ == "__main__":
