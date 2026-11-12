@@ -29,6 +29,14 @@ Both servers run the same `arena/hub.py` (accounts, lobby, rooms, match, scores,
 Accounts, statistics and match history are stored on the server PC in `data/arena.db` (SQLite,
 passwords stored as salted PBKDF2 hashes).
 
+## Online server (Azure, TCP version)
+
+`run_client.bat` is for a LAN server. To play on the deployed server (port 443, because the university network blocks 8000):
+```
+python client/pygame_client.py --proto tcp --host bomberman-arena.germanywestcentral.cloudapp.azure.com --port 443
+```
+See [docs/DEPLOYMENT_AZURE.md](docs/DEPLOYMENT_AZURE.md): Azure VM + nginx TCP pass-through on port 443, and why.
+
 ## Test without 4 computers
 ```
 python tools/selftest.py                      # 68 automatic checks, both versions
