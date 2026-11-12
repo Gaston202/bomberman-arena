@@ -38,6 +38,16 @@ python client/pygame_client.py --proto udp --host bomberman-arena.germanywestcen
 ```
 See [docs/DEPLOYMENT_AZURE.md](docs/DEPLOYMENT_AZURE.md): Azure VM, nginx TCP pass-through on TCP 443, UDP server on UDP 443, and why.
 
+## Play without installing anything (Windows .exe)
+
+`BombermanArena-TCP.exe` and `BombermanArena-UDP.exe` are the same pygame client bundled with Python and pygame.
+Double-click to connect to the online server; options still work, e.g. for a LAN server:
+`BombermanArena-UDP.exe --host 192.168.1.20 --port 9000`.
+
+Windows may show "Windows protected your PC" (the files are not code-signed): *More info* -> *Run anyway*.
+
+Build them yourself: `pip install pyinstaller` then `python tools/build_exe.py` -> `dist/`.
+
 ## Test without 4 computers
 ```
 python tools/selftest.py                      # 68 automatic checks, both versions

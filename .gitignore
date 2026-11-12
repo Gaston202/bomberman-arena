@@ -17,3 +17,8 @@ Thumbs.db
 # Secrets: never commit SSH keys
 *.pem
 *.key
+
+# PyInstaller output (tools/build_exe.py)
+build/
+dist/
+client/_build_proto.py

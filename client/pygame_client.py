@@ -11,8 +11,10 @@ import os
 import sys
 import time
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+SOURCE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# In a PyInstaller .exe the bundled files are unpacked to a temp folder given by sys._MEIPASS
+ROOT = getattr(sys, "_MEIPASS", SOURCE_ROOT)
+sys.path.insert(0, SOURCE_ROOT)
 
 import pygame                                   # noqa: E402
 from arena.netclient import make_client          # noqa: E402
@@ -308,11 +310,13 @@ class App:
         self.text("ENTER: back to the room", (W // 2, H - 60), 26, DIM, center=True)
 
 
-def main():
+def main(proto=None, host="127.0.0.1", port=None):
+    """Arguments are the defaults; command-line options override them.
+    proto=None means --proto must be given (plain `python client/pygame_client.py`)."""
     ap = argparse.ArgumentParser()
-    ap.add_argument("--proto", choices=["tcp", "udp"], required=True)
-    ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=None)
+    ap.add_argument("--proto", choices=["tcp", "udp"], default=proto, required=proto is None)
+    ap.add_argument("--host", default=host)
+    ap.add_argument("--port", type=int, default=port)
     ap.add_argument("--loss", type=float, default=0.0)
     a = ap.parse_args()
     pygame.init()
